@@ -450,10 +450,12 @@ class CasitaAgent:
     @staticmethod
     def _format_search(results: SearchResults, unsupported: list[str]) -> str:
         if not results.matches:
-            message = "No active listings satisfy all current hard constraints."
+            message = "No listings in the stored snapshot satisfy all current hard constraints."
         else:
             lines = [
-                f"Found {results.total_matched} matches. Showing the top {len(results.matches)}:"
+                f"Found {results.total_matched} snapshot matches. Showing the top "
+                f"{len(results.matches)}. Prices are stored snapshot values; current "
+                "price and availability are not verified:"
             ]
             lines.extend(
                 f"{index}. {CasitaAgent._format_facts(match.listing)}"
@@ -489,11 +491,14 @@ class CasitaAgent:
     @staticmethod
     def _format_comparison(results: ComparisonResults, unsupported: list[str]) -> str:
         if not results.listings:
-            message = "I could not find those active listing keys."
+            message = "I could not find those listing keys in the stored snapshot."
         else:
-            message = "\n".join(
-                CasitaAgent._format_facts(listing)
-                for listing in results.listings
+            message = (
+                "Comparing stored snapshot facts; current price and availability are not verified:\n"
+                + "\n".join(
+                    CasitaAgent._format_facts(listing)
+                    for listing in results.listings
+                )
             )
         if results.missing_keys:
             message += "\nMissing listings: " + ", ".join(results.missing_keys) + "."
@@ -505,7 +510,7 @@ class CasitaAgent:
     def _format_facts(facts: ListingFacts) -> str:
         name = facts.address or facts.key
         fields = [
-            f"${facts.price:,}" if facts.price is not None else "price unknown",
+            f"snapshot ${facts.price:,}" if facts.price is not None else "snapshot price not recorded",
             f"{facts.beds:g} bd" if facts.beds is not None else "beds unknown",
             f"{facts.baths:g} ba" if facts.baths is not None else "baths unknown",
         ]
@@ -515,4 +520,7 @@ class CasitaAgent:
             fields.append("dogs: " + facts.dog_policy.replace("_", " "))
         if facts.has_yard is True:
             fields.append("yard")
+        if facts.last_seen is not None:
+            fields.append(f"last observed {facts.last_seen:%b %-d, %Y}")
+        fields.append("availability unverified")
         return f"{name} ({facts.key}) — " + ", ".join(fields)

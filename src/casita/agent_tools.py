@@ -3,6 +3,7 @@
 import sqlite3
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -18,6 +19,7 @@ class ListingFacts(BaseModel):
     """A compact, evidence-friendly view of a listing."""
 
     key: str
+    source: str
     address: str | None
     neighborhood: str | None
     price: int | None
@@ -30,11 +32,13 @@ class ListingFacts(BaseModel):
     light_quality: str | None
     view_quality: str | None
     url: str
+    last_seen: datetime | None
 
     @classmethod
     def from_listing(cls, listing: Listing) -> "ListingFacts":
         return cls(
             key=listing.key,
+            source=listing.source,
             address=listing.address,
             neighborhood=listing.hood,
             price=listing.price,
@@ -47,6 +51,7 @@ class ListingFacts(BaseModel):
             light_quality=listing.light_quality,
             view_quality=listing.view_quality,
             url=listing.url,
+            last_seen=listing.last_seen,
         )
 
 

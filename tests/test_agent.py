@@ -166,6 +166,18 @@ def test_agent_preserves_preferences_across_search_turns():
     assert second.search_results.matches[0].listing.key == "manual:one"
 
 
+def test_agent_labels_search_results_as_unverified_snapshot_facts():
+    conn = _connection(_listing("one", address="One St", price=4800))
+    agent = CasitaAgent(conn, RuleBasedInterpreter())
+
+    response = agent.respond("Show homes")
+
+    assert "snapshot matches" in response.message
+    assert "snapshot $4,800" in response.message
+    assert "current price and availability are not verified" in response.message
+    assert "availability unverified" in response.message
+
+
 def test_agent_compares_the_previous_top_results():
     conn = _connection(
         _listing("one", address="One St", price=4800),

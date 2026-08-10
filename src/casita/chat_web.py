@@ -138,14 +138,17 @@ main { width: min(860px, 100%); min-height: 100vh; margin: auto; display: grid; 
 header { padding: 24px 20px 16px; border-bottom: 1px solid light-dark(#d7d2c6, #34443a); }
 h1 { margin: 0; font-family: Georgia, serif; font-weight: 500; }
 header p { margin: 6px 0 0; color: light-dark(#5c665f, #b5c3b9); }
+.snapshot-notice { margin: 14px 0 0; padding: 10px 12px; border-radius: 10px; background: light-dark(#fff3cd, #493f1d); color: light-dark(#594600, #ffe9a6); font-size: .9rem; line-height: 1.35; }
 #messages { padding: 22px 20px; display: flex; flex-direction: column; gap: 14px; }
 .message { max-width: 88%; padding: 13px 15px; border-radius: 16px; white-space: pre-wrap; line-height: 1.45; }
 .user { align-self: flex-end; background: light-dark(#2f6a4a, #72b98d); color: light-dark(#fff, #102017); }
 .agent { align-self: flex-start; background: light-dark(#fff, #25342b); border: 1px solid light-dark(#ded9ce, #3d5044); }
 .results { align-self: stretch; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-.result { display: block; padding: 12px; border: 1px solid light-dark(#d8d3c7, #3a4b40); border-radius: 12px; color: inherit; text-decoration: none; background: light-dark(#faf9f5, #202d25); }
+.result { display: block; padding: 12px; border: 1px solid light-dark(#d8d3c7, #3a4b40); border-radius: 12px; color: inherit; background: light-dark(#faf9f5, #202d25); }
 .result strong, .result span { display: block; }
 .result span { margin-top: 4px; color: light-dark(#637067, #b4c3b8); }
+.result .status { color: light-dark(#7a5a00, #f2d57c); font-size: .86rem; }
+.source-link { display: inline-block; margin-top: 9px; color: light-dark(#285b40, #8bd1a4); font-weight: 650; text-decoration: underline; text-underline-offset: 2px; }
 form { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 16px 20px 22px; background: light-dark(#f4f1e9ee, #162019ee); backdrop-filter: blur(10px); }
 input, button { font: inherit; border-radius: 999px; padding: 13px 16px; }
 input { border: 1px solid light-dark(#c8c2b5, #435648); background: light-dark(#fff, #223027); color: inherit; }
@@ -156,9 +159,12 @@ button:disabled { opacity: .55; cursor: wait; }
 </head>
 <body>
 <main>
-  <header><h1>Casita</h1><p>Grounded conversational rental search</p></header>
+  <header>
+    <h1>Casita</h1><p>Grounded conversational rental search</p>
+    <div class="snapshot-notice"><strong>Offline demo snapshot.</strong> Listing prices and availability may have changed. Always check the current source before acting.</div>
+  </header>
   <section id="messages" aria-live="polite">
-    <div class="message agent">Tell me what you need in a rental. You can refine the results or ask me to compare them.</div>
+    <div class="message agent">Tell me what you need in a rental snapshot. You can refine the results or ask me to compare them.</div>
   </section>
   <form id="chat-form">
     <input id="message" autocomplete="off" maxlength="4000" placeholder="Two bedrooms under $5,500 near a trail…" aria-label="Message">
@@ -184,14 +190,26 @@ function addResults(searchResults) {
   grid.className = 'results';
   for (const match of searchResults.matches) {
     const facts = match.listing;
-    const card = document.createElement(facts.url ? 'a' : 'div');
+    const card = document.createElement('article');
     card.className = 'result';
-    if (facts.url) { card.href = facts.url; card.target = '_blank'; card.rel = 'noopener'; }
     const title = document.createElement('strong');
     title.textContent = facts.address || facts.key;
     const detail = document.createElement('span');
-    detail.textContent = [facts.price == null ? 'Price unknown' : `$${facts.price.toLocaleString()}`, facts.neighborhood].filter(Boolean).join(' · ');
-    card.append(title, detail);
+    detail.textContent = [facts.price == null ? 'Snapshot price not recorded' : `Snapshot $${facts.price.toLocaleString()}`, facts.neighborhood].filter(Boolean).join(' · ');
+    const status = document.createElement('span');
+    status.className = 'status';
+    const observed = facts.last_seen ? new Date(facts.last_seen).toLocaleDateString(undefined, {year: 'numeric', month: 'short', day: 'numeric'}) : 'date not recorded';
+    status.textContent = `Last observed ${observed} · Availability unverified`;
+    card.append(title, detail, status);
+    if (facts.url) {
+      const link = document.createElement('a');
+      link.className = 'source-link';
+      link.href = facts.url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Check current source ↗';
+      card.appendChild(link);
+    }
     grid.appendChild(card);
   }
   messages.appendChild(grid);

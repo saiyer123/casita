@@ -318,6 +318,7 @@ def _row_to_listing(row: sqlite3.Row) -> Listing:
         share_blurb=row["share_blurb"],
         share_token=row["share_token"],
         first_seen=row["first_seen"] if "first_seen" in row.keys() else None,
+        last_seen=row["last_seen"] if "last_seen" in row.keys() else None,
     )
 
 

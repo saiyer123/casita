@@ -54,7 +54,10 @@ credentials-free, and usable offline.
 ## Demo
 
 The demo is credentials-free and uses a sanitized SQLite fixture with cached
-route times and precomputed LLM enrichment.
+route times and precomputed LLM enrichment. It is a deterministic historical
+snapshot for evaluating search behavior, not a source of current inventory.
+Every conversational result labels its stored price and last-observed date,
+and current price or availability must be confirmed at the linked source.
 
 ```bash
 uv sync

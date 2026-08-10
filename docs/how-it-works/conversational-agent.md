@@ -31,6 +31,12 @@ The public path is credentials-free:
 uv run casita chat
 ```
 
+The public fixture is a historical snapshot, not a live inventory feed. Agent
+answers and web result cards label stored prices as snapshot values, show when
+each listing was last observed, and treat current price and availability as
+unverified. External links are presented only as an explicit way to check the
+current source.
+
 Repeat `--message` for a reproducible multi-turn transcript:
 
 ```bash

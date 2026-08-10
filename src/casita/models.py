@@ -60,6 +60,7 @@ class Listing(BaseModel):
     lng: float | None = None
     neighborhood_resolved: str | None = None  # computed from lat/lng, overrides `neighborhood`
     first_seen: datetime | None = None  # when this listing first entered the DB (set by storage)
+    last_seen: datetime | None = None  # last scrape that observed the listing; not proof it is still available
     raw: dict = Field(default_factory=dict)
     scraped_at: datetime = Field(default_factory=datetime.utcnow)
 

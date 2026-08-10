@@ -14,6 +14,10 @@ def test_chat_html_uses_local_api_and_safe_text_rendering():
     assert "fetch('/api/chat'" in CHAT_HTML
     assert "textContent = text" in CHAT_HTML
     assert "innerHTML" not in CHAT_HTML
+    assert "Offline demo snapshot" in CHAT_HTML
+    assert "Availability unverified" in CHAT_HTML
+    assert "Check current source" in CHAT_HTML
+    assert "Snapshot price not recorded" in CHAT_HTML
 
 
 def test_chat_server_processes_message_and_persists_structured_state(tmp_path):
@@ -44,6 +48,8 @@ def test_chat_server_processes_message_and_persists_structured_state(tmp_path):
 
         assert response.status == 200
         assert payload["search_results"]["total_matched"] > 0
+        first_listing = payload["search_results"]["matches"][0]["listing"]
+        assert first_listing["last_seen"] is not None
         with sqlite3.connect(session_db) as conn:
             state = load_session(conn, "browser-test")
         assert state is not None
