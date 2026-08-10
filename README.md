@@ -51,6 +51,39 @@ demo does not include a reliable provider dataset. Model-backed interpretation
 and verification are optional; the complete core demo remains deterministic,
 credentials-free, and usable offline.
 
+## Reviewer Quick Start
+
+Clone this fork and install its locked dependencies:
+
+```bash
+git clone https://github.com/saiyer123/casita.git
+cd casita
+uv sync
+uv run playwright install chromium
+```
+
+Start the deterministic conversational demo:
+
+```bash
+uv run casita chat-web
+```
+
+Open <http://127.0.0.1:8766/> and try this conversation one message at a time:
+
+```text
+Find at least 2 bedrooms under $5,500 per month for two large dogs.
+Keep them within 20 minutes of a trail.
+Also keep them near a 24-hour emergency vet.
+Show current preferences.
+Compare the top two.
+Is the first result still available?
+```
+
+Casita searches long-term rentals, and listing prices are monthly. Weekly,
+nightly, and other short-term stays are outside the current data model. The
+offline demo uses a historical fixture so the agent behavior is reproducible;
+use the optional live mode below to refresh current source searches.
+
 ## Demo
 
 The demo is credentials-free and uses a sanitized SQLite fixture with cached
@@ -84,7 +117,7 @@ To test against currently observed inventory instead of the historical fixture,
 refresh the configured rental searches when the chat server starts:
 
 ```bash
-uv run casita chat-web --live --headed
+uv run casita chat-web --live --headless
 ```
 
 Live mode fails closed: it first deactivates all fixture listings, then exposes
@@ -94,6 +127,13 @@ may require `uv run casita solve` once to establish a reusable browser session.
 The live refresh is a startup observation rather than a guarantee; source pages
 can change after the check, so the UI shows the observation time and retains an
 explicit source link.
+
+The refresh may take a few minutes. When it finishes, the terminal prints the
+successful sources, live listing count, and chat URL. If Zillow or Redfin shows
+a browser challenge, stop the command, run `uv run casita solve` once, close
+that browser after solving it, and retry. Use `--headed` only when visually
+debugging a source; otherwise `--headless` avoids opening and closing browser
+windows during the refresh.
 
 Example prompts:
 
