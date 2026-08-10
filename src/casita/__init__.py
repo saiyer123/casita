@@ -20,6 +20,8 @@ console = Console()
 PACKAGE_ROOT = Path(__file__).resolve().parent
 ROOT = PACKAGE_ROOT.parent.parent if PACKAGE_ROOT.parent.name == "src" else Path.cwd()
 DEMO_FIXTURE = PACKAGE_ROOT / "fixtures" / "demo.sqlite"
+AGENT_EVAL_FIXTURE = PACKAGE_ROOT / "fixtures" / "agent-evals.json"
+VERIFIER_EVAL_FIXTURE = PACKAGE_ROOT / "fixtures" / "verifier-evals.json"
 
 
 async def _enrich_one(sem, ctx, L: Listing, enrich_zillow: bool) -> None:
@@ -1206,6 +1208,255 @@ def demo(fixture: Path, host: str, port: int):
             httpd.serve_forever()
         except KeyboardInterrupt:
             console.print("\n[yellow]demo server stopped[/yellow]")
+
+
+@cli.command()
+@click.option(
+    "--fixture",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=DEMO_FIXTURE,
+    help="SQLite fixture used for the credentials-free chat session.",
+)
+@click.option(
+    "--llm/--offline",
+    "use_llm",
+    default=False,
+    help="Use Gemini for broad language interpretation; offline uses local rules.",
+)
+@click.option(
+    "--message",
+    "messages",
+    multiple=True,
+    help="Process a message non-interactively; repeat for a multi-turn transcript.",
+)
+@click.option(
+    "--session",
+    help="Resume and save a named structured preference session.",
+)
+@click.option(
+    "--reset-session",
+    is_flag=True,
+    help="Delete the named session before starting.",
+)
+@click.option(
+    "--verify",
+    is_flag=True,
+    help="Run the optional Gemini verifier agent on grounded answers.",
+)
+def chat(
+    fixture: Path,
+    use_llm: bool,
+    messages: tuple[str, ...],
+    session: str | None,
+    reset_session: bool,
+    verify: bool,
+):
+    """Talk to the single Casita search agent over the sanitized fixture."""
+    import shutil
+
+    from .agent import CasitaAgent, GeminiInterpreter, RuleBasedInterpreter
+    from .agent_sessions import delete_session, load_session, save_session
+    from .verifier import GeminiVerifier
+
+    if (use_llm or verify) and not llm.PROJECT:
+        raise click.UsageError("Set CASITA_GCP_PROJECT before using --llm or --verify.")
+    if reset_session and not session:
+        raise click.UsageError("--reset-session requires --session.")
+    if session is not None and (not session.strip() or len(session) > 64):
+        raise click.UsageError("--session must be between 1 and 64 characters.")
+
+    chat_db = ROOT / "tmp" / "chat.sqlite"
+    chat_db.parent.mkdir(exist_ok=True)
+    shutil.copy2(fixture, chat_db)
+    previous_db = os.environ.get("CASITA_DB_PATH")
+    previous_route_db = os.environ.get("CASITA_ROUTE_CACHE_DB")
+    previous_offline = os.environ.get("CASITA_ROUTES_OFFLINE")
+    os.environ["CASITA_DB_PATH"] = str(chat_db)
+    os.environ["CASITA_ROUTE_CACHE_DB"] = str(chat_db)
+    os.environ["CASITA_ROUTES_OFFLINE"] = "1"
+    try:
+        interpreter = GeminiInterpreter() if use_llm else RuleBasedInterpreter()
+        verifier = GeminiVerifier() if verify else None
+        session_conn = None
+        initial_state = None
+        if session:
+            session_db = ROOT / "tmp" / "agent-sessions.sqlite"
+            session_conn = sqlite3.connect(session_db)
+            if reset_session:
+                delete_session(session_conn, session)
+            initial_state = load_session(session_conn, session)
+            if initial_state is not None:
+                console.print(f"[dim]resumed session: {session}[/dim]")
+        try:
+            with storage.connect() as conn:
+                agent = CasitaAgent(
+                    conn,
+                    interpreter,
+                    state=initial_state,
+                    verifier=verifier,
+                )
+
+                def _save() -> None:
+                    if session and session_conn is not None:
+                        save_session(session_conn, session, agent.state)
+
+                if messages:
+                    for message in messages:
+                        console.print(f"[bold]you:[/bold] {message}")
+                        response = agent.respond(message)
+                        _save()
+                        console.print(Panel(response.message, title="Casita"))
+                        if response.should_exit:
+                            break
+                    return
+
+                console.print("[bold]Casita chat[/bold] · type 'help' or 'exit'")
+                while True:
+                    message = click.prompt("you")
+                    response = agent.respond(message)
+                    _save()
+                    console.print(Panel(response.message, title="Casita"))
+                    if response.should_exit:
+                        break
+        finally:
+            if session_conn is not None:
+                session_conn.close()
+    finally:
+        if previous_db is None:
+            os.environ.pop("CASITA_DB_PATH", None)
+        else:
+            os.environ["CASITA_DB_PATH"] = previous_db
+        if previous_route_db is None:
+            os.environ.pop("CASITA_ROUTE_CACHE_DB", None)
+        else:
+            os.environ["CASITA_ROUTE_CACHE_DB"] = previous_route_db
+        if previous_offline is None:
+            os.environ.pop("CASITA_ROUTES_OFFLINE", None)
+        else:
+            os.environ["CASITA_ROUTES_OFFLINE"] = previous_offline
+
+
+@cli.command(name="eval-agent")
+@click.option(
+    "--cases",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=AGENT_EVAL_FIXTURE,
+    help="JSON evaluation cases.",
+)
+@click.option(
+    "--llm/--offline",
+    "use_llm",
+    default=False,
+    help="Evaluate Gemini interpretation instead of the offline interpreter.",
+)
+def eval_agent(cases: Path, use_llm: bool):
+    """Evaluate intent and preference extraction on a small public benchmark."""
+    from .agent import GeminiInterpreter, RuleBasedInterpreter
+    from .agent_eval import evaluate_interpreter, load_eval_cases
+
+    if use_llm and not llm.PROJECT:
+        raise click.UsageError("Set CASITA_GCP_PROJECT before using --llm.")
+    interpreter = GeminiInterpreter() if use_llm else RuleBasedInterpreter()
+    report = evaluate_interpreter(interpreter, load_eval_cases(cases))
+
+    table = Table(title="Casita agent evaluation")
+    table.add_column("measure")
+    table.add_column("result", justify="right")
+    table.add_row("cases", f"{report.passed_cases}/{report.total_cases}")
+    table.add_row("intent", f"{report.correct_intents}/{report.intent_checks}")
+    table.add_row(
+        "profile fields",
+        f"{report.correct_profile_fields}/{report.profile_checks}",
+    )
+    table.add_row(
+        "unsupported detection",
+        f"{report.correct_unsupported}/{report.unsupported_checks}",
+    )
+    console.print(table)
+    for failure in report.failures:
+        console.print(f"[red]{failure.case}:[/red] {failure.detail}")
+    if report.failures:
+        raise SystemExit(1)
+
+
+@cli.command(name="eval-verifier")
+@click.option(
+    "--cases",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=VERIFIER_EVAL_FIXTURE,
+)
+def eval_verifier(cases: Path):
+    """Evaluate the optional Gemini verifier on supported and unsupported claims."""
+    from .verifier import GeminiVerifier
+    from .verifier_eval import evaluate_verifier, load_verifier_cases
+
+    if not llm.PROJECT:
+        raise click.UsageError("Set CASITA_GCP_PROJECT before evaluating the verifier.")
+    report = evaluate_verifier(GeminiVerifier(), load_verifier_cases(cases))
+    console.print(
+        f"verifier: {report.correct_cases}/{report.total_cases} correct · "
+        f"{report.elapsed_seconds:.3f}s"
+    )
+    for failure in report.failures:
+        console.print(f"[red]{failure}[/red]")
+    if report.failures:
+        raise SystemExit(1)
+
+
+@cli.command(name="chat-web")
+@click.option(
+    "--fixture",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=DEMO_FIXTURE,
+    help="SQLite fixture used by the local web chat.",
+)
+@click.option("--host", default="127.0.0.1")
+@click.option("--port", default=8766)
+@click.option("--llm/--offline", "use_llm", default=False)
+@click.option("--verify", is_flag=True, help="Run the optional Gemini verifier agent.")
+def chat_web(fixture: Path, host: str, port: int, use_llm: bool, verify: bool):
+    """Serve a local browser interface for the Casita agent."""
+    import shutil
+
+    from .agent import GeminiInterpreter, RuleBasedInterpreter
+    from .chat_web import create_chat_server
+    from .verifier import GeminiVerifier
+
+    if (use_llm or verify) and not llm.PROJECT:
+        raise click.UsageError("Set CASITA_GCP_PROJECT before using --llm or --verify.")
+    listing_db = ROOT / "tmp" / "chat-web.sqlite"
+    session_db = ROOT / "tmp" / "agent-sessions.sqlite"
+    listing_db.parent.mkdir(exist_ok=True)
+    shutil.copy2(fixture, listing_db)
+    previous_route_db = os.environ.get("CASITA_ROUTE_CACHE_DB")
+    previous_offline = os.environ.get("CASITA_ROUTES_OFFLINE")
+    os.environ["CASITA_ROUTE_CACHE_DB"] = str(listing_db)
+    os.environ["CASITA_ROUTES_OFFLINE"] = "1"
+    interpreter = GeminiInterpreter() if use_llm else RuleBasedInterpreter()
+    verifier = GeminiVerifier() if verify else None
+    server = create_chat_server(
+        listing_db=listing_db,
+        session_db=session_db,
+        interpreter=interpreter,
+        verifier=verifier,
+        host=host,
+        port=port,
+    )
+    console.print(f"[green]chat:[/green] http://{host}:{port}/")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]chat server stopped[/yellow]")
+    finally:
+        server.server_close()
+        if previous_route_db is None:
+            os.environ.pop("CASITA_ROUTE_CACHE_DB", None)
+        else:
+            os.environ["CASITA_ROUTE_CACHE_DB"] = previous_route_db
+        if previous_offline is None:
+            os.environ.pop("CASITA_ROUTES_OFFLINE", None)
+        else:
+            os.environ["CASITA_ROUTES_OFFLINE"] = previous_offline
 
 
 # ---------------------------------------------------------------------------

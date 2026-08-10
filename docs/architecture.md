@@ -10,6 +10,9 @@ CLI.
 | Area | Files |
 | --- | --- |
 | CLI orchestration | `src/casita/__init__.py` |
+| Conversational search | `agent.py`, `preferences.py`, `agent_tools.py`, `places.py` |
+| Agent interfaces and state | `chat_web.py`, `agent_sessions.py` |
+| Agent evaluation | `agent_eval.py`, `verifier.py`, `verifier_eval.py` |
 | Listing model and SQLite | `models.py`, `storage.py` |
 | Sources | `zillow.py`, `craigslist.py`, `zumper.py`, `redfin.py` |
 | Source helpers | `browser.py`, `cache.py`, `dogs.py`, `geo.py`, `locations.py`, `photos.py` |

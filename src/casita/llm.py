@@ -37,6 +37,8 @@ def _model_name(env_var: str, default: str) -> str:
 
 EXTRACT_MODEL = _model_name("CASITA_EXTRACT_MODEL", "gemini-3.1-pro-preview")
 RANK_MODEL = _model_name("CASITA_RANK_MODEL", "gemini-3.1-pro-preview")
+AGENT_MODEL = _model_name("CASITA_AGENT_MODEL", "gemini-3.1-pro-preview")
+VERIFIER_MODEL = _model_name("CASITA_VERIFIER_MODEL", "gemini-3.1-pro-preview")
 
 _client: genai.Client | None = None
 
@@ -432,6 +434,41 @@ def _call_structured(
 
 
 # ---------- public ----------
+
+
+def interpret_agent_turn(prompt: str, schema: type[BaseModel]) -> BaseModel | None:
+    """Map a conversational search turn into the caller's structured plan."""
+
+    system = """You are the language interpreter for Casita, a rental-search agent.
+Return only a structured plan. Never answer the user and never invent listing facts.
+
+Capabilities:
+- search or refine by max price, minimum beds/baths, neighborhoods, dog policy,
+  required yard/parking/laundry, and preferred listing features
+- prefer or require maximum travel time to trails, beaches, bakeries, or downtown
+- prefer or require proximity to veterinary clinics, 24/7 emergency vets, or dog parks
+- compare or inspect listing keys
+- show current preferences, help, or exit
+
+PreferenceUpdate is a delta. Preserve existing preferences by leaving unchanged
+fields null. Use `clear` only when the user explicitly relaxes/removes a constraint.
+Put requests Casita cannot verify from listing data in `unsupported_requests`, such
+as safety, noise, negotiation likelihood, mold, or real-time availability.
+Ask a clarification only when a required argument is genuinely missing.
+"""
+    return _call_structured(AGENT_MODEL, system, prompt, schema)
+
+
+def verify_agent_response(prompt: str, schema: type[BaseModel]) -> BaseModel | None:
+    """Audit a drafted agent answer against its retrieved evidence."""
+
+    system = """You are a verification agent. Compare every factual claim in the
+answer against the supplied structured evidence. Return `pass` only when every
+claim is directly supported. Return `warn` and list the unsupported claims when
+the answer adds, strengthens, or guesses beyond the evidence. A `dogs_ok` policy
+does not prove that large dogs are accepted. Missing facts are not evidence.
+Do not rewrite the answer and do not add outside knowledge."""
+    return _call_structured(VERIFIER_MODEL, system, prompt, schema)
 
 
 def extract_facts(listing: Listing, conn: sqlite3.Connection) -> ExtractedFacts | None:

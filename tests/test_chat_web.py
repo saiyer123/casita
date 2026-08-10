@@ -1,0 +1,55 @@
+import json
+import shutil
+import sqlite3
+import threading
+from urllib.request import Request, urlopen
+
+import casita
+from casita.agent import RuleBasedInterpreter
+from casita.agent_sessions import load_session
+from casita.chat_web import CHAT_HTML, create_chat_server
+
+
+def test_chat_html_uses_local_api_and_safe_text_rendering():
+    assert "fetch('/api/chat'" in CHAT_HTML
+    assert "textContent = text" in CHAT_HTML
+    assert "innerHTML" not in CHAT_HTML
+
+
+def test_chat_server_processes_message_and_persists_structured_state(tmp_path):
+    listing_db = tmp_path / "listings.sqlite"
+    session_db = tmp_path / "sessions.sqlite"
+    shutil.copy2(casita.DEMO_FIXTURE, listing_db)
+    server = create_chat_server(
+        listing_db=listing_db,
+        session_db=session_db,
+        interpreter=RuleBasedInterpreter(),
+        port=0,
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address[:2]
+        request = Request(
+            f"http://{host}:{port}/api/chat",
+            data=json.dumps({
+                "session": "browser-test",
+                "message": "Find 2 bedrooms under $5,000",
+            }).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlopen(request, timeout=10) as response:
+            payload = json.load(response)
+
+        assert response.status == 200
+        assert payload["search_results"]["total_matched"] > 0
+        with sqlite3.connect(session_db) as conn:
+            state = load_session(conn, "browser-test")
+        assert state is not None
+        assert state.profile.max_price == 5000
+        assert state.profile.min_beds == 2
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)

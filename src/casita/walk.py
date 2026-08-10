@@ -348,7 +348,7 @@ def populate_for(listings) -> dict[tuple[str, str], int]:
 
     Returns a dict keyed by (listing.key, anchor.name) → minutes.
     """
-    anchors = BEACHES + BAKERIES + PRESIDIO_GATES
+    anchors = BEACHES + BAKERIES + PRESIDIO_GATES + SF_CENTER
     result: dict[tuple[str, str], int] = {}
     pending_origins: list[tuple[float, float]] = []
     pending_pairs: list[tuple[str, str, float, float, float, float]] = []

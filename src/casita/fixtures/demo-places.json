@@ -1,0 +1,139 @@
+{
+  "source": "OpenStreetMap contributors, with emergency-service status checked against provider websites",
+  "retrieved_at": "2026-08-09",
+  "license": "Open Database License (ODbL)",
+  "places": [
+    {
+      "id": "osm:node:1053632026",
+      "name": "Tamalpais Pet Hospital",
+      "category": "veterinary",
+      "lat": 37.9014535,
+      "lng": -122.5261777,
+      "source_url": "https://www.openstreetmap.org/node/1053632026"
+    },
+    {
+      "id": "osm:node:9092892118",
+      "name": "Sausalito Animal Hospital",
+      "category": "veterinary",
+      "lat": 37.8596481,
+      "lng": -122.4863247,
+      "source_url": "https://www.openstreetmap.org/node/9092892118"
+    },
+    {
+      "id": "osm:way:1122524653",
+      "name": "Adobe Pet Hospital",
+      "category": "veterinary",
+      "lat": 37.881496,
+      "lng": -122.525454,
+      "source_url": "https://www.openstreetmap.org/way/1122524653"
+    },
+    {
+      "id": "osm:way:260053217",
+      "name": "Arguello Pet Hospital",
+      "category": "veterinary",
+      "lat": 37.7806368,
+      "lng": -122.4584651,
+      "website": "https://www.arguellopet.com/",
+      "source_url": "https://www.openstreetmap.org/way/260053217"
+    },
+    {
+      "id": "osm:way:267692311",
+      "name": "Irving Pet Hospital",
+      "category": "veterinary",
+      "lat": 37.763982,
+      "lng": -122.473432,
+      "website": "https://irvingpethospital.com/",
+      "source_url": "https://www.openstreetmap.org/way/267692311"
+    },
+    {
+      "id": "osm:way:287688535",
+      "name": "Balboa Pet Hospital",
+      "category": "veterinary",
+      "lat": 37.7756221,
+      "lng": -122.4946251,
+      "website": "https://balboapethospital.com/",
+      "source_url": "https://www.openstreetmap.org/way/287688535"
+    },
+    {
+      "id": "osm:node:4214359690",
+      "name": "Sunset Veterinary Hospital",
+      "category": "veterinary",
+      "lat": 37.7528858,
+      "lng": -122.503964,
+      "source_url": "https://www.openstreetmap.org/node/4214359690"
+    },
+    {
+      "id": "provider:sage-sf",
+      "name": "SAGE Veterinary Centers - San Francisco",
+      "category": "emergency_vet",
+      "lat": 37.7614721,
+      "lng": -122.4121895,
+      "website": "https://www.sagecenters.com/locations/san-francisco",
+      "source_url": "https://www.sagecenters.com/locations/san-francisco",
+      "note": "Provider states emergency care is open 24/7."
+    },
+    {
+      "id": "provider:sfamc",
+      "name": "San Francisco Animal Medical Center",
+      "category": "emergency_vet",
+      "lat": 37.7912957,
+      "lng": -122.4346366,
+      "website": "https://www.sfamc.com/contact",
+      "source_url": "https://www.sfamc.com/contact",
+      "note": "Provider states pet emergency services are available 24/7."
+    },
+    {
+      "id": "provider:pescm",
+      "name": "Pet Emergency & Specialty Center of Marin",
+      "category": "emergency_vet",
+      "lat": 38.003015,
+      "lng": -122.549111,
+      "website": "https://pescm.com/",
+      "source_url": "https://srchamber.com/list/member/pet-emergency-specialty-center-of-marin-16169",
+      "note": "Provider listing states emergency care is open 24/7/365."
+    },
+    {
+      "id": "osm:way:389128196",
+      "name": "Golden Gate Park Dog Training Area",
+      "category": "dog_park",
+      "lat": 37.7710198,
+      "lng": -122.4995275,
+      "website": "https://sfrecpark.org/Facilities/Facility/Details/GGP-Dog-Training-Area-13",
+      "source_url": "https://www.openstreetmap.org/way/389128196"
+    },
+    {
+      "id": "osm:way:1119773696",
+      "name": "Upper Douglass Dog Play Area",
+      "category": "dog_park",
+      "lat": 37.7467953,
+      "lng": -122.439075,
+      "website": "https://sfrecpark.org/Facilities/Facility/Details/Upper-Douglass-Dog-Play-Area-7",
+      "source_url": "https://www.openstreetmap.org/way/1119773696"
+    },
+    {
+      "id": "osm:way:38025784",
+      "name": "Corona Heights Dog Play Area",
+      "category": "dog_park",
+      "lat": 37.7655424,
+      "lng": -122.4398144,
+      "website": "https://sfrecpark.org/Facilities/Facility/Details/Corona-Heights-Dog-Play-Area-5",
+      "source_url": "https://www.openstreetmap.org/way/38025784"
+    },
+    {
+      "id": "osm:way:1392745072",
+      "name": "Larkspur Neighborhood Dog Park",
+      "category": "dog_park",
+      "lat": 37.94777,
+      "lng": -122.5060357,
+      "source_url": "https://www.openstreetmap.org/way/1392745072"
+    },
+    {
+      "id": "osm:way:1441720643",
+      "name": "Piper Park Dog Park",
+      "category": "dog_park",
+      "lat": 37.9387167,
+      "lng": -122.5289302,
+      "source_url": "https://www.openstreetmap.org/way/1441720643"
+    }
+  ]
+}

@@ -211,8 +211,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
 
 
 @contextmanager
-def connect():
-    conn = sqlite3.connect(db_path())
+def connect_path(path: Path):
+    """Open and migrate a specific Casita SQLite database."""
+
+    conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     try:
         conn.executescript(SCHEMA)
@@ -221,6 +223,12 @@ def connect():
         conn.commit()
     finally:
         conn.close()
+
+
+@contextmanager
+def connect():
+    with connect_path(db_path()) as conn:
+        yield conn
 
 
 def _listing_to_row(L: Listing) -> dict:

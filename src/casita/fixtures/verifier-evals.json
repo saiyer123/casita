@@ -1,0 +1,58 @@
+[
+  {
+    "name": "supported listing facts",
+    "answer": "1 Demo Street costs $5,000 and has 2 bedrooms.",
+    "evidence": {
+      "search_results": {
+        "total_matched": 1,
+        "matches": [
+          {
+            "listing": {
+              "key": "manual:demo",
+              "address": "1 Demo Street",
+              "price": 5000,
+              "beds": 2,
+              "dog_policy": "dogs_ok"
+            }
+          }
+        ]
+      }
+    },
+    "expected_verdict": "pass"
+  },
+  {
+    "name": "unsupported safety claim",
+    "answer": "1 Demo Street is in a safe neighborhood.",
+    "evidence": {
+      "search_results": {
+        "matches": [
+          {
+            "listing": {
+              "key": "manual:demo",
+              "address": "1 Demo Street"
+            }
+          }
+        ]
+      }
+    },
+    "expected_verdict": "warn"
+  },
+  {
+    "name": "dog policy overclaim",
+    "answer": "The landlord definitely accepts two large dogs.",
+    "evidence": {
+      "search_results": {
+        "matches": [
+          {
+            "listing": {
+              "key": "manual:demo",
+              "dog_policy": "dogs_ok"
+            },
+            "unknown_preferences": ["large dog approval"]
+          }
+        ]
+      }
+    },
+    "expected_verdict": "warn"
+  }
+]

@@ -1,0 +1,64 @@
+[
+  {
+    "name": "budget beds and neighborhood",
+    "messages": [
+      "Find 2 bedrooms under $5k in Inner Richmond"
+    ],
+    "expected_intents": ["search"],
+    "expected_profile": {
+      "max_price": 5000,
+      "min_beds": 2.0,
+      "neighborhoods": ["Inner Richmond"]
+    }
+  },
+  {
+    "name": "large dogs and required yard",
+    "messages": [
+      "I need a yard for my two large dogs"
+    ],
+    "expected_intents": ["search"],
+    "expected_profile": {
+      "dog_requirement": "large_ok",
+      "yard_required": true
+    }
+  },
+  {
+    "name": "relax budget across turns",
+    "messages": [
+      "Show homes under $5,000",
+      "Any budget, but parking is required"
+    ],
+    "expected_intents": ["search", "search"],
+    "expected_profile": {
+      "max_price": null,
+      "parking_required": true
+    }
+  },
+  {
+    "name": "unsupported safety question",
+    "messages": [
+      "Is this neighborhood safe at night?"
+    ],
+    "expected_intents": ["search"],
+    "expected_profile": {},
+    "expected_unsupported": ["neighborhood safety"]
+  },
+  {
+    "name": "compare prior results",
+    "messages": [
+      "Compare them"
+    ],
+    "expected_intents": ["compare"],
+    "expected_profile": {}
+  },
+  {
+    "name": "soft natural light preference",
+    "messages": [
+      "I prefer a place with natural light"
+    ],
+    "expected_intents": ["search"],
+    "expected_profile": {
+      "preferred_features": ["natural light"]
+    }
+  }
+]

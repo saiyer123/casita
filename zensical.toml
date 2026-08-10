@@ -11,6 +11,7 @@ nav = [
   { "Backstory" = "index.md" },
   { "Getting Started" = "getting-started.md" },
   { "How It Works" = [
+    { "Conversational Agent" = "how-it-works/conversational-agent.md" },
     { "Routing" = "how-it-works/routing.md" },
     { "Photo Evaluation" = "how-it-works/photo-eval.md" },
     { "Deduplication" = "how-it-works/deduplication.md" },
