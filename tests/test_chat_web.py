@@ -18,6 +18,9 @@ def test_chat_html_uses_local_api_and_safe_text_rendering():
     assert "Availability unverified" in CHAT_HTML
     assert "Check current source" in CHAT_HTML
     assert "price not recorded" in CHAT_HTML
+    assert "Thinking…" in CHAT_HTML
+    assert "Casita is thinking" in CHAT_HTML
+    assert "thinking.remove()" in CHAT_HTML
 
 
 def test_live_chat_html_distinguishes_current_search_observations():

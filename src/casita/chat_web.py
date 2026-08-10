@@ -148,6 +148,9 @@ header p { margin: 6px 0 0; color: light-dark(#5c665f, #b5c3b9); }
 .message { max-width: 88%; padding: 13px 15px; border-radius: 16px; white-space: pre-wrap; line-height: 1.45; }
 .user { align-self: flex-end; background: light-dark(#2f6a4a, #72b98d); color: light-dark(#fff, #102017); }
 .agent { align-self: flex-start; background: light-dark(#fff, #25342b); border: 1px solid light-dark(#ded9ce, #3d5044); }
+.thinking { color: light-dark(#637067, #b4c3b8); animation: thinking-pulse 1.15s ease-in-out infinite; }
+@keyframes thinking-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .thinking { animation: none; } }
 .results { align-self: stretch; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
 .result { display: block; padding: 12px; border: 1px solid light-dark(#d8d3c7, #3a4b40); border-radius: 12px; color: inherit; background: light-dark(#faf9f5, #202d25); }
 .result strong, .result span { display: block; }
@@ -189,6 +192,7 @@ function addMessage(text, kind) {
   item.textContent = text;
   messages.appendChild(item);
   item.scrollIntoView({behavior: 'smooth', block: 'end'});
+  return item;
 }
 function addResults(searchResults) {
   if (!searchResults || !searchResults.matches.length) return;
@@ -232,15 +236,21 @@ form.addEventListener('submit', async (event) => {
   addMessage(text, 'user');
   input.value = '';
   send.disabled = true;
+  const thinking = addMessage('Thinking…', 'agent thinking');
+  thinking.setAttribute('role', 'status');
+  thinking.setAttribute('aria-label', 'Casita is thinking');
   try {
     const response = await fetch('/api/chat', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session, message: text})});
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Request failed');
+    thinking.remove();
     addMessage(payload.message, 'agent');
     addResults(payload.search_results);
   } catch (error) {
+    thinking.remove();
     addMessage(`Could not reach Casita: ${error.message}`, 'agent');
   } finally {
+    thinking.remove();
     send.disabled = false;
     input.focus();
   }
