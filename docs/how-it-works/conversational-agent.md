@@ -37,6 +37,14 @@ each listing was last observed, and treat current price and availability as
 unverified. External links are presented only as an explicit way to check the
 current source.
 
+For an explicit networked run, `casita chat-web --live --headed` reuses the
+existing source-search adapters before starting the chat server. The refresh
+deactivates every fixture row and enables only listings returned by successful
+current rental searches. Empty, blocked, or failed sources contribute nothing;
+there is no fallback to their stale fixture rows. The UI labels these results
+as observed in a live search and records the observation time. Run `casita
+solve` first if Zillow or Redfin requires a human captcha step.
+
 Repeat `--message` for a reproducible multi-turn transcript:
 
 ```bash

@@ -11,7 +11,18 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from . import craigslist, dedup, html, llm, redfin, storage, walk, zillow, zumper
+from . import (
+    craigslist,
+    dedup,
+    html,
+    live_inventory,
+    llm,
+    redfin,
+    storage,
+    walk,
+    zillow,
+    zumper,
+)
 from .browser import context
 from .models import Listing
 from .rank import rank, score
@@ -1414,7 +1425,26 @@ def eval_verifier(cases: Path):
 @click.option("--port", default=8766)
 @click.option("--llm/--offline", "use_llm", default=False)
 @click.option("--verify", is_flag=True, help="Run the optional Gemini verifier agent.")
-def chat_web(fixture: Path, host: str, port: int, use_llm: bool, verify: bool):
+@click.option(
+    "--live/--snapshot",
+    "live_mode",
+    default=False,
+    help="Refresh source searches at startup instead of serving historical fixture inventory.",
+)
+@click.option(
+    "--headless/--headed",
+    default=True,
+    help="Browser mode used only by --live source refresh.",
+)
+def chat_web(
+    fixture: Path,
+    host: str,
+    port: int,
+    use_llm: bool,
+    verify: bool,
+    live_mode: bool,
+    headless: bool,
+):
     """Serve a local browser interface for the Casita agent."""
     import shutil
 
@@ -1428,6 +1458,33 @@ def chat_web(fixture: Path, host: str, port: int, use_llm: bool, verify: bool):
     session_db = ROOT / "tmp" / "agent-sessions.sqlite"
     listing_db.parent.mkdir(exist_ok=True)
     shutil.copy2(fixture, listing_db)
+    if live_mode:
+        console.print("[bold]refreshing live rental searches…[/bold]")
+        try:
+            live_listings, succeeded_sources = asyncio.run(
+                live_inventory.scrape_live_inventory(headless=headless)
+            )
+        except Exception as exc:
+            raise click.ClickException(
+                "Live refresh could not start its browser. Run `playwright install "
+                "chromium`, then retry. If a source shows a challenge, run "
+                "`casita solve` before starting live chat."
+            ) from exc
+        if not live_listings:
+            raise click.ClickException(
+                "No source returned verifiable live listings. "
+                "Run `casita solve`, then retry with `chat-web --live --headed`."
+            )
+        with storage.connect_path(listing_db) as listing_conn:
+            live_inventory.replace_active_inventory(
+                listing_conn,
+                live_listings,
+                succeeded_sources,
+            )
+        console.print(
+            f"[green]live inventory:[/green] {len(live_listings)} listings · "
+            f"sources: {', '.join(succeeded_sources)}"
+        )
     previous_route_db = os.environ.get("CASITA_ROUTE_CACHE_DB")
     previous_offline = os.environ.get("CASITA_ROUTES_OFFLINE")
     os.environ["CASITA_ROUTE_CACHE_DB"] = str(listing_db)
@@ -1439,6 +1496,7 @@ def chat_web(fixture: Path, host: str, port: int, use_llm: bool, verify: bool):
         session_db=session_db,
         interpreter=interpreter,
         verifier=verifier,
+        data_mode="live" if live_mode else "snapshot",
         host=host,
         port=port,
     )

@@ -178,6 +178,20 @@ def test_agent_labels_search_results_as_unverified_snapshot_facts():
     assert "availability unverified" in response.message
 
 
+def test_live_agent_labels_current_search_observation_and_answers_availability():
+    conn = _connection(_listing("one", address="One St", price=4800))
+    agent = CasitaAgent(conn, RuleBasedInterpreter(), data_mode="live")
+
+    search = agent.respond("Show homes")
+    availability = agent.respond("Is the first result still available?")
+
+    assert "live-source matches" in search.message
+    assert "live $4,800" in search.message
+    assert "observed in live manual rental search" in search.message
+    assert "was observed in the live manual rental search" in availability.message
+    assert "Reopen the source before acting" in availability.message
+
+
 def test_agent_compares_the_previous_top_results():
     conn = _connection(
         _listing("one", address="One St", price=4800),

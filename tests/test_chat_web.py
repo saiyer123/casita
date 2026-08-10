@@ -7,7 +7,7 @@ from urllib.request import Request, urlopen
 import casita
 from casita.agent import RuleBasedInterpreter
 from casita.agent_sessions import load_session
-from casita.chat_web import CHAT_HTML, create_chat_server
+from casita.chat_web import CHAT_HTML, chat_html, create_chat_server
 
 
 def test_chat_html_uses_local_api_and_safe_text_rendering():
@@ -17,7 +17,16 @@ def test_chat_html_uses_local_api_and_safe_text_rendering():
     assert "Offline demo snapshot" in CHAT_HTML
     assert "Availability unverified" in CHAT_HTML
     assert "Check current source" in CHAT_HTML
-    assert "Snapshot price not recorded" in CHAT_HTML
+    assert "price not recorded" in CHAT_HTML
+
+
+def test_live_chat_html_distinguishes_current_search_observations():
+    page = chat_html("live")
+
+    assert "Live refresh enabled" in page
+    assert "Open current source" in page
+    assert "Observed in live search" in page
+    assert "Offline demo snapshot" not in page
 
 
 def test_chat_server_processes_message_and_persists_structured_state(tmp_path):

@@ -80,6 +80,21 @@ For the same agent in a local browser UI, run `uv run casita chat-web` and
 open <http://127.0.0.1:8766/>. Named CLI and browser sessions persist only the
 structured preference profile, not the raw conversation.
 
+To test against currently observed inventory instead of the historical fixture,
+refresh the configured rental searches when the chat server starts:
+
+```bash
+uv run casita chat-web --live --headed
+```
+
+Live mode fails closed: it first deactivates all fixture listings, then exposes
+only listings returned by successful current source searches. A blocked source
+contributes no results and never falls back to stale rows. Zillow and Redfin
+may require `uv run casita solve` once to establish a reusable browser session.
+The live refresh is a startup observation rather than a guarantee; source pages
+can change after the check, so the UI shows the observation time and retains an
+explicit source link.
+
 Example prompts:
 
 - `Find 2 bedrooms under $5,500 for large dogs.`

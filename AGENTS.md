@@ -34,6 +34,7 @@ offline route behavior, renders the static site, and serves it at
 - `src/casita/zillow.py`, `craigslist.py`, `zumper.py`, `redfin.py` - live source scrapers.
 - `src/casita/locations.py` - canonical SF and Marin search terms shared by scrapers.
 - `src/casita/llm.py`, `rank.py`, `walk.py`, `dedup.py` - enrichment, scoring, routing, and deduplication.
+- `src/casita/live_inventory.py` - fail-closed current-source refresh for optional live chat mode.
 - `src/casita/html.py`, `listing_page.py`, `static/` - static site rendering and assets.
 - `src/casita/cloud_sync.py` - optional private GCS/Firebase deployment plumbing.
 - `fixtures/demo.sqlite` - sanitized offline fixture used by the demo and tests.

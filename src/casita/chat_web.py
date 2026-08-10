@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from . import storage
-from .agent import CasitaAgent, ConversationState, Interpreter
+from .agent import CasitaAgent, ConversationState, DataMode, Interpreter
 from .agent_sessions import load_session, save_session
 from .verifier import ResponseVerifier
 
@@ -25,6 +25,7 @@ def process_chat_message(
     message: str,
     interpreter: Interpreter,
     verifier: ResponseVerifier | None = None,
+    data_mode: DataMode = "snapshot",
 ):
     with sqlite3.connect(session_db) as session_conn:
         state = load_session(session_conn, session_id) or ConversationState()
@@ -34,6 +35,7 @@ def process_chat_message(
                 interpreter,
                 state=state,
                 verifier=verifier,
+                data_mode=data_mode,
             )
             response = agent.respond(message)
         save_session(session_conn, session_id, agent.state)
@@ -46,16 +48,18 @@ def create_chat_server(
     session_db: Path,
     interpreter: Interpreter,
     verifier: ResponseVerifier | None = None,
+    data_mode: DataMode = "snapshot",
     host: str = "127.0.0.1",
     port: int = 8766,
 ) -> ThreadingHTTPServer:
     lock = threading.Lock()
+    page_html = chat_html(data_mode)
 
     class ChatHandler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
             path = urlsplit(self.path)
             if path.path == "/":
-                self._send(HTTPStatus.OK, CHAT_HTML, "text/html; charset=utf-8")
+                self._send(HTTPStatus.OK, page_html, "text/html; charset=utf-8")
                 return
             if path.path == "/api/state":
                 session_id = parse_qs(path.query).get("session", [""])[0]
@@ -97,6 +101,7 @@ def create_chat_server(
                     message=message,
                     interpreter=interpreter,
                     verifier=verifier,
+                    data_mode=data_mode,
                 )
             self._json(HTTPStatus.OK, response.model_dump(mode="json"))
 
@@ -124,7 +129,7 @@ def _valid_session_id(value: str) -> bool:
     return bool(value and len(value) <= 64 and all(char.isalnum() or char in "-_" for char in value))
 
 
-CHAT_HTML = r"""<!doctype html>
+CHAT_HTML_TEMPLATE = r"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -161,10 +166,10 @@ button:disabled { opacity: .55; cursor: wait; }
 <main>
   <header>
     <h1>Casita</h1><p>Grounded conversational rental search</p>
-    <div class="snapshot-notice"><strong>Offline demo snapshot.</strong> Listing prices and availability may have changed. Always check the current source before acting.</div>
+    <div class="snapshot-notice">__BANNER__</div>
   </header>
   <section id="messages" aria-live="polite">
-    <div class="message agent">Tell me what you need in a rental snapshot. You can refine the results or ask me to compare them.</div>
+    <div class="message agent">__INTRO__</div>
   </section>
   <form id="chat-form">
     <input id="message" autocomplete="off" maxlength="4000" placeholder="Two bedrooms under $5,500 near a trail…" aria-label="Message">
@@ -173,6 +178,7 @@ button:disabled { opacity: .55; cursor: wait; }
 </main>
 <script>
 const session = localStorage.casitaSession || (localStorage.casitaSession = crypto.randomUUID());
+const liveMode = '__DATA_MODE__' === 'live';
 const form = document.getElementById('chat-form');
 const input = document.getElementById('message');
 const send = document.getElementById('send');
@@ -195,11 +201,16 @@ function addResults(searchResults) {
     const title = document.createElement('strong');
     title.textContent = facts.address || facts.key;
     const detail = document.createElement('span');
-    detail.textContent = [facts.price == null ? 'Snapshot price not recorded' : `Snapshot $${facts.price.toLocaleString()}`, facts.neighborhood].filter(Boolean).join(' · ');
+    const priceKind = liveMode ? 'Live' : 'Snapshot';
+    detail.textContent = [facts.price == null ? `${priceKind} price not recorded` : `${priceKind} $${facts.price.toLocaleString()}`, facts.neighborhood].filter(Boolean).join(' · ');
     const status = document.createElement('span');
     status.className = 'status';
-    const observed = facts.last_seen ? new Date(facts.last_seen).toLocaleDateString(undefined, {year: 'numeric', month: 'short', day: 'numeric'}) : 'date not recorded';
-    status.textContent = `Last observed ${observed} · Availability unverified`;
+    const observed = facts.last_seen
+      ? new Date(facts.last_seen).toLocaleString(undefined, liveMode
+          ? {year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}
+          : {year: 'numeric', month: 'short', day: 'numeric'})
+      : 'date not recorded';
+    status.textContent = liveMode ? `Observed in live search ${observed}` : `Last observed ${observed} · Availability unverified`;
     card.append(title, detail, status);
     if (facts.url) {
       const link = document.createElement('a');
@@ -207,7 +218,7 @@ function addResults(searchResults) {
       link.href = facts.url;
       link.target = '_blank';
       link.rel = 'noopener';
-      link.textContent = 'Check current source ↗';
+      link.textContent = liveMode ? 'Open current source ↗' : 'Check current source ↗';
       card.appendChild(link);
     }
     grid.appendChild(card);
@@ -238,3 +249,33 @@ form.addEventListener('submit', async (event) => {
 </body>
 </html>
 """
+
+
+def chat_html(data_mode: DataMode) -> str:
+    if data_mode == "live":
+        banner = (
+            "<strong>Live refresh enabled.</strong> Results were observed in current "
+            "rental searches when this server started. Source pages can still change."
+        )
+        intro = (
+            "Tell me what you need in a currently observed rental. "
+            "You can refine the results or ask me to compare them."
+        )
+    else:
+        banner = (
+            "<strong>Offline demo snapshot.</strong> Listing prices and availability may "
+            "have changed. Always check the current source before acting."
+        )
+        intro = (
+            "Tell me what you need in a rental snapshot. "
+            "You can refine the results or ask me to compare them."
+        )
+    return (
+        CHAT_HTML_TEMPLATE
+        .replace("__BANNER__", banner)
+        .replace("__INTRO__", intro)
+        .replace("__DATA_MODE__", data_mode)
+    )
+
+
+CHAT_HTML = chat_html("snapshot")

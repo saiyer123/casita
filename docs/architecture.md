@@ -15,6 +15,7 @@ CLI.
 | Agent evaluation | `agent_eval.py`, `verifier.py`, `verifier_eval.py` |
 | Listing model and SQLite | `models.py`, `storage.py` |
 | Sources | `zillow.py`, `craigslist.py`, `zumper.py`, `redfin.py` |
+| Live inventory refresh | `live_inventory.py` |
 | Source helpers | `browser.py`, `cache.py`, `dogs.py`, `geo.py`, `locations.py`, `photos.py` |
 | Enrichment and ranking | `llm.py`, `rank.py`, `walk.py`, `dedup.py` |
 | Static rendering | `html.py`, `listing_page.py` |

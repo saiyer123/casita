@@ -26,6 +26,7 @@ from .verifier import EvidenceBundle, ResponseVerifier, VerificationReport
 
 
 Intent = Literal["search", "compare", "details", "show_preferences", "help", "exit"]
+DataMode = Literal["snapshot", "live"]
 
 
 class TurnInterpretation(BaseModel):
@@ -331,11 +332,13 @@ class CasitaAgent:
         interpreter: Interpreter | None = None,
         state: ConversationState | None = None,
         verifier: ResponseVerifier | None = None,
+        data_mode: DataMode = "snapshot",
     ):
         self.conn = conn
         self.interpreter = interpreter or RuleBasedInterpreter()
         self.state = state or ConversationState()
         self.verifier = verifier
+        self.data_mode = data_mode
 
     def respond(self, message: str) -> AgentResponse:
         plan = self.interpreter.interpret(message, self.state)
@@ -354,6 +357,8 @@ class CasitaAgent:
             return self._response(plan.clarification)
 
         unsupported = plan.update.unsupported_requests
+        if unsupported == ["current availability"] and self.data_mode == "live":
+            return self._response(self._format_live_availability())
         if unsupported and not self._has_search_change(plan.update):
             return self._response(
                 "I cannot verify " + ", ".join(unsupported) + " from Casita's current data."
@@ -447,18 +452,27 @@ class CasitaAgent:
             parts.append(label)
         return "Current preferences: " + ("; ".join(parts) if parts else "none yet") + "."
 
-    @staticmethod
-    def _format_search(results: SearchResults, unsupported: list[str]) -> str:
+    def _format_search(self, results: SearchResults, unsupported: list[str]) -> str:
         if not results.matches:
-            message = "No listings in the stored snapshot satisfy all current hard constraints."
+            if self.data_mode == "live":
+                message = "No currently observed listings satisfy all current hard constraints."
+            else:
+                message = "No listings in the stored snapshot satisfy all current hard constraints."
         else:
-            lines = [
-                f"Found {results.total_matched} snapshot matches. Showing the top "
-                f"{len(results.matches)}. Prices are stored snapshot values; current "
-                "price and availability are not verified:"
-            ]
+            if self.data_mode == "live":
+                lines = [
+                    f"Found {results.total_matched} live-source matches. Showing the top "
+                    f"{len(results.matches)}. Each was observed in a current rental search "
+                    "when this server started; source pages can still change:"
+                ]
+            else:
+                lines = [
+                    f"Found {results.total_matched} snapshot matches. Showing the top "
+                    f"{len(results.matches)}. Prices are stored snapshot values; current "
+                    "price and availability are not verified:"
+                ]
             lines.extend(
-                f"{index}. {CasitaAgent._format_facts(match.listing)}"
+                f"{index}. {self._format_facts(match.listing)}"
                 + (
                     " Routes: "
                     + ", ".join(
@@ -488,29 +502,34 @@ class CasitaAgent:
             message += "\nCould not verify: " + ", ".join(unsupported) + "."
         return message
 
-    @staticmethod
-    def _format_comparison(results: ComparisonResults, unsupported: list[str]) -> str:
+    def _format_comparison(self, results: ComparisonResults, unsupported: list[str]) -> str:
         if not results.listings:
-            message = "I could not find those listing keys in the stored snapshot."
+            noun = "live inventory" if self.data_mode == "live" else "stored snapshot"
+            message = f"I could not find those listing keys in the {noun}."
         else:
-            message = (
-                "Comparing stored snapshot facts; current price and availability are not verified:\n"
-                + "\n".join(
-                    CasitaAgent._format_facts(listing)
-                    for listing in results.listings
+            if self.data_mode == "live":
+                message = (
+                    "Comparing listings observed in the live source refresh; source pages can still change:\n"
+                    + "\n".join(self._format_facts(listing) for listing in results.listings)
                 )
-            )
+            else:
+                message = (
+                    "Comparing stored snapshot facts; current price and availability are not verified:\n"
+                    + "\n".join(self._format_facts(listing) for listing in results.listings)
+                )
         if results.missing_keys:
             message += "\nMissing listings: " + ", ".join(results.missing_keys) + "."
         if unsupported:
             message += "\nCould not verify: " + ", ".join(unsupported) + "."
         return message
 
-    @staticmethod
-    def _format_facts(facts: ListingFacts) -> str:
+    def _format_facts(self, facts: ListingFacts) -> str:
         name = facts.address or facts.key
+        price_label = "live" if self.data_mode == "live" else "snapshot"
         fields = [
-            f"snapshot ${facts.price:,}" if facts.price is not None else "snapshot price not recorded",
+            f"{price_label} ${facts.price:,}"
+            if facts.price is not None
+            else f"{price_label} price not recorded",
             f"{facts.beds:g} bd" if facts.beds is not None else "beds unknown",
             f"{facts.baths:g} ba" if facts.baths is not None else "baths unknown",
         ]
@@ -521,6 +540,29 @@ class CasitaAgent:
         if facts.has_yard is True:
             fields.append("yard")
         if facts.last_seen is not None:
-            fields.append(f"last observed {facts.last_seen:%b %-d, %Y}")
-        fields.append("availability unverified")
+            observed = facts.last_seen.strftime("%b %d, %Y").replace(" 0", " ")
+            fields.append(f"last observed {observed}")
+        if self.data_mode == "live":
+            fields.append(f"observed in live {facts.source} rental search")
+        else:
+            fields.append("availability unverified")
         return f"{name} ({facts.key}) — " + ", ".join(fields)
+
+    def _format_live_availability(self) -> str:
+        if not self.state.last_result_keys:
+            return "Search the live inventory first, then ask about a result."
+        comparison = compare_active_listings(self.conn, self.state.last_result_keys[:1])
+        if not comparison.listings:
+            return "That result is no longer present in the current live inventory."
+        facts = comparison.listings[0]
+        name = facts.address or facts.key
+        observed = (
+            facts.last_seen.strftime("%b %d, %Y at %H:%M UTC")
+            if facts.last_seen is not None
+            else "the latest refresh"
+        )
+        price = f" at ${facts.price:,}/month" if facts.price is not None else ""
+        return (
+            f"{name} was observed in the live {facts.source} rental search "
+            f"on {observed}{price}. Reopen the source before acting because listings can change."
+        )
