@@ -20,6 +20,25 @@ GCS, deploy to Firebase, or call the Google Maps Routes API. It does use the
 local Playwright Chromium browser to capture Open Graph preview cards from
 listing photos and facts.
 
+## Optional Gemini Mode
+
+The fastest way to test the conversational Gemini interpreter is with a Gemini
+Developer API key:
+
+```bash
+GEMINI_API_KEY=your-key uv run casita chat-web --llm
+```
+
+Alternatively, use Vertex AI with Application Default Credentials:
+
+```bash
+gcloud auth application-default login
+CASITA_GCP_PROJECT=your-project uv run casita chat-web --llm
+```
+
+The API key or project can also be placed in a local `.env` copied from
+`.env.example`. Never commit that file.
+
 ## Live Runs
 
 Live search uses browser automation and network calls:

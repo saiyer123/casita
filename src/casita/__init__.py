@@ -1269,8 +1269,8 @@ def chat(
     from .agent_sessions import delete_session, load_session, save_session
     from .verifier import GeminiVerifier
 
-    if (use_llm or verify) and not llm.PROJECT:
-        raise click.UsageError("Set CASITA_GCP_PROJECT before using --llm or --verify.")
+    if (use_llm or verify) and not llm.llm_is_configured():
+        raise click.UsageError(llm.LLM_SETUP_HINT)
     if reset_session and not session:
         raise click.UsageError("--reset-session requires --session.")
     if session is not None and (not session.strip() or len(session) > 64):
@@ -1365,8 +1365,8 @@ def eval_agent(cases: Path, use_llm: bool):
     from .agent import GeminiInterpreter, RuleBasedInterpreter
     from .agent_eval import evaluate_interpreter, load_eval_cases
 
-    if use_llm and not llm.PROJECT:
-        raise click.UsageError("Set CASITA_GCP_PROJECT before using --llm.")
+    if use_llm and not llm.llm_is_configured():
+        raise click.UsageError(llm.LLM_SETUP_HINT)
     interpreter = GeminiInterpreter() if use_llm else RuleBasedInterpreter()
     report = evaluate_interpreter(interpreter, load_eval_cases(cases))
 
@@ -1401,8 +1401,8 @@ def eval_verifier(cases: Path):
     from .verifier import GeminiVerifier
     from .verifier_eval import evaluate_verifier, load_verifier_cases
 
-    if not llm.PROJECT:
-        raise click.UsageError("Set CASITA_GCP_PROJECT before evaluating the verifier.")
+    if not llm.llm_is_configured():
+        raise click.UsageError(llm.LLM_SETUP_HINT)
     report = evaluate_verifier(GeminiVerifier(), load_verifier_cases(cases))
     console.print(
         f"verifier: {report.correct_cases}/{report.total_cases} correct · "
@@ -1452,8 +1452,8 @@ def chat_web(
     from .chat_web import create_chat_server
     from .verifier import GeminiVerifier
 
-    if (use_llm or verify) and not llm.PROJECT:
-        raise click.UsageError("Set CASITA_GCP_PROJECT before using --llm or --verify.")
+    if (use_llm or verify) and not llm.llm_is_configured():
+        raise click.UsageError(llm.LLM_SETUP_HINT)
     listing_db = ROOT / "tmp" / "chat-web.sqlite"
     session_db = ROOT / "tmp" / "agent-sessions.sqlite"
     listing_db.parent.mkdir(exist_ok=True)

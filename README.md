@@ -141,8 +141,15 @@ Example prompts:
 - `Keep them within a 20-minute walk of a trail and near an emergency vet.`
 - `Now require a yard and compare the top two.`
 
-With a configured Vertex project, `uv run casita chat-web --llm --verify`
-enables broader language interpretation and the optional verifier experiment.
+For broader Gemini language interpretation, create a Gemini API key, then run:
+
+```bash
+GEMINI_API_KEY=your-key uv run casita chat-web --llm
+```
+
+Add `--verify` to enable the optional verifier agent. The same commands also
+support Vertex AI: run `gcloud auth application-default login`, set
+`CASITA_GCP_PROJECT`, and use `--llm`. See `.env.example` for model overrides.
 
 The demo does not scrape, call Vertex, deploy to Firebase, read GCS, or call the
 Google Maps Routes API. It does use Playwright's local Chromium browser to

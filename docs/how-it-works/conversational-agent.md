@@ -70,16 +70,26 @@ uv run casita chat-web
 ```
 
 The offline interpreter covers common rental language. `casita chat --llm`
-uses the configured Vertex-backed Gemini model for broader phrasing, but the
-model still returns only a typed plan. It does not query SQLite or invent the
-answer. If model interpretation fails, the agent falls back to the offline
-interpreter.
+uses Gemini for broader phrasing, but the model still returns only a typed
+plan. It does not query SQLite or invent the answer. If model interpretation
+fails, the agent falls back to the offline interpreter.
+
+The shortest local setup uses a Gemini Developer API key:
+
+```bash
+GEMINI_API_KEY=your-key uv run casita chat --llm \
+  --message "Find a sunny two-bedroom under $5,500 for a large dog"
+```
+
+Vertex AI is also supported. Run `gcloud auth application-default login`, set
+`CASITA_GCP_PROJECT`, and invoke the same command. Both backends default to the
+stable `gemini-2.5-flash` model; `.env.example` lists model overrides.
 
 `casita chat --llm --verify` enables the optional two-agent experiment. The
 primary agent interprets the request; the verifier receives only the drafted
 answer and retrieved evidence and warns when a claim is stronger than the
-evidence. Both model-backed modes require the configured Vertex project. The
-offline demo remains credentials-free.
+evidence. Both model-backed modes accept either supported Gemini authentication
+method. The offline demo remains credentials-free.
 
 ## Boundaries
 

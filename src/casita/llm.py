@@ -1,6 +1,8 @@
-"""LLM-driven extraction + ranking via Vertex AI (Gemini 3+).
+"""LLM-driven extraction + ranking via Gemini.
 
-Default backend: Gemini 3 Flash (extraction) + 3.1 Pro (ranking) on Vertex AI.
+Supports the Gemini Developer API with an API key and Vertex AI with
+Application Default Credentials. The stable Gemini 2.5 Flash model is the
+portable default for both backends.
 
 Calls google-genai directly while still using Pydantic models for structured
 output schemas via `response_schema`.
@@ -27,28 +29,60 @@ from .models import Listing
 
 load_dotenv()
 
-PROJECT = os.environ.get("CASITA_GCP_PROJECT")
-LOCATION = os.environ.get("CASITA_VERTEX_LOCATION", "global")
-
 # Strip a "google-vertex:" prefix if an env var includes one.
 def _model_name(env_var: str, default: str) -> str:
     raw = os.environ.get(env_var, default)
     return raw.split(":", 1)[1] if ":" in raw else raw
 
-EXTRACT_MODEL = _model_name("CASITA_EXTRACT_MODEL", "gemini-3.1-pro-preview")
-RANK_MODEL = _model_name("CASITA_RANK_MODEL", "gemini-3.1-pro-preview")
-AGENT_MODEL = _model_name("CASITA_AGENT_MODEL", "gemini-3.1-pro-preview")
-VERIFIER_MODEL = _model_name("CASITA_VERIFIER_MODEL", "gemini-3.1-pro-preview")
+EXTRACT_MODEL = _model_name("CASITA_EXTRACT_MODEL", "gemini-2.5-flash")
+RANK_MODEL = _model_name("CASITA_RANK_MODEL", "gemini-2.5-flash")
+AGENT_MODEL = _model_name("CASITA_AGENT_MODEL", "gemini-2.5-flash")
+VERIFIER_MODEL = _model_name("CASITA_VERIFIER_MODEL", "gemini-2.5-flash")
 
 _client: genai.Client | None = None
+_client_config: tuple[str, ...] | None = None
+
+
+def _backend_config() -> tuple[str, ...] | None:
+    """Return the configured Gemini backend and its required values."""
+
+    project = os.environ.get("CASITA_GCP_PROJECT")
+    if project:
+        location = os.environ.get("CASITA_VERTEX_LOCATION", "global")
+        return ("vertex", project, location)
+
+    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    if api_key:
+        return ("developer", api_key)
+    return None
+
+
+def llm_is_configured() -> bool:
+    """Whether either supported Gemini authentication method is configured."""
+
+    return _backend_config() is not None
+
+
+LLM_SETUP_HINT = (
+    "Set GEMINI_API_KEY for the Gemini Developer API, or set "
+    "CASITA_GCP_PROJECT and authenticate with Application Default Credentials "
+    "for Vertex AI."
+)
 
 
 def _get_client() -> genai.Client:
-    global _client
-    if not PROJECT:
-        raise RuntimeError("Set CASITA_GCP_PROJECT to use Vertex-backed LLM commands.")
-    if _client is None:
-        _client = genai.Client(vertexai=True, project=PROJECT, location=LOCATION)
+    global _client, _client_config
+    config = _backend_config()
+    if config is None:
+        raise RuntimeError(LLM_SETUP_HINT)
+    if _client is None or _client_config != config:
+        if config[0] == "vertex":
+            _, project, location = config
+            _client = genai.Client(vertexai=True, project=project, location=location)
+        else:
+            _, api_key = config
+            _client = genai.Client(api_key=api_key)
+        _client_config = config
     return _client
 
 
