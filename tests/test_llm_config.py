@@ -76,7 +76,7 @@ def test_structured_call_uses_gemini_compatible_json_schema(monkeypatch):
     monkeypatch.setattr(llm, "_get_client", lambda: fake_client)
 
     result = llm._call_structured(
-        "gemini-2.5-flash",
+        "gemini-3.5-flash-lite",
         "Return a positive value.",
         "Seven",
         PositiveResult,

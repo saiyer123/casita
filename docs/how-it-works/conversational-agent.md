@@ -83,7 +83,7 @@ GEMINI_API_KEY=your-key uv run casita chat --llm \
 
 Vertex AI is also supported. Run `gcloud auth application-default login`, set
 `CASITA_GCP_PROJECT`, and invoke the same command. Both backends default to the
-stable `gemini-2.5-flash` model; `.env.example` lists model overrides.
+stable `gemini-3.5-flash-lite` model; `.env.example` lists model overrides.
 
 `casita chat --llm --verify` enables the optional two-agent experiment. The
 primary agent interprets the request; the verifier receives only the drafted

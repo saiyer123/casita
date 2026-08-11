@@ -1,7 +1,7 @@
 """LLM-driven extraction + ranking via Gemini.
 
 Supports the Gemini Developer API with an API key and Vertex AI with
-Application Default Credentials. The stable Gemini 2.5 Flash model is the
+Application Default Credentials. The stable Gemini 3.5 Flash-Lite model is the
 portable default for both backends.
 
 Calls google-genai directly while still using Pydantic models for structured
@@ -34,10 +34,10 @@ def _model_name(env_var: str, default: str) -> str:
     raw = os.environ.get(env_var, default)
     return raw.split(":", 1)[1] if ":" in raw else raw
 
-EXTRACT_MODEL = _model_name("CASITA_EXTRACT_MODEL", "gemini-2.5-flash")
-RANK_MODEL = _model_name("CASITA_RANK_MODEL", "gemini-2.5-flash")
-AGENT_MODEL = _model_name("CASITA_AGENT_MODEL", "gemini-2.5-flash")
-VERIFIER_MODEL = _model_name("CASITA_VERIFIER_MODEL", "gemini-2.5-flash")
+EXTRACT_MODEL = _model_name("CASITA_EXTRACT_MODEL", "gemini-3.5-flash-lite")
+RANK_MODEL = _model_name("CASITA_RANK_MODEL", "gemini-3.5-flash-lite")
+AGENT_MODEL = _model_name("CASITA_AGENT_MODEL", "gemini-3.5-flash-lite")
+VERIFIER_MODEL = _model_name("CASITA_VERIFIER_MODEL", "gemini-3.5-flash-lite")
 
 _client: genai.Client | None = None
 _client_config: tuple[str, ...] | None = None
@@ -467,10 +467,9 @@ def _call_structured(
     except RuntimeError as e:
         print(f"  llm config err: {e}")
         return None
-    # Don't cap output unless the caller insists. Gemini 2.5 supports 65k+ output
-    # tokens; capping mid-response truncates JSON mid-string and the parser fails.
+    # Don't cap output unless the caller insists. Capping mid-response can
+    # truncate JSON mid-string and make schema parsing fail.
     config = gtypes.GenerateContentConfig(
-        temperature=0,
         max_output_tokens=max_output_tokens,
         response_mime_type="application/json",
         response_json_schema=_gemini_response_schema(schema),
@@ -651,7 +650,7 @@ def _current_feedback(conn: sqlite3.Connection, keys: list[str]) -> dict[str, st
 def _preference_examples(conn: sqlite3.Connection, *, cap: int = _EXAMPLES_CAP) -> str:
     """Few-shot block of recent up/pass votes, fresh signal the prompt hasn't
     yet absorbed. Returns "" when there are no votes (prompt stays byte-identical
-    to the voteless baseline). Deterministic: stable ORDER BY + temperature=0.
+    to the voteless baseline). Stable ordering keeps repeated runs comparable.
 
     UP signal = `votes` (direction='up'). DOWN signal = `passed_on` notes in
     `listing_status` (voter via the eliminate `actions` row) UNION
@@ -883,7 +882,6 @@ def review_photos(
             model=RANK_MODEL,  # 3.1 Pro — vision-capable
             contents=[gtypes.Content(role="user", parts=[text_part, *image_parts])],
             config=gtypes.GenerateContentConfig(
-                temperature=0,
                 response_mime_type="application/json",
                 response_json_schema=_gemini_response_schema(PhotoReview),
                 system_instruction=_PHOTO_REVIEW_SYSTEM,
