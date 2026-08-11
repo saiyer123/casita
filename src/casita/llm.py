@@ -86,6 +86,37 @@ def _get_client() -> genai.Client:
     return _client
 
 
+def _gemini_response_schema(schema: type[BaseModel]) -> dict:
+    """Translate Pydantic JSON Schema to Gemini's supported JSON subset.
+
+    Pydantic emits ``exclusiveMinimum`` for ``Field(gt=...)`` and ``default``
+    for optional fields. Gemini's JSON-schema endpoint does not accept either
+    keyword. Runtime Pydantic validation still enforces the original strict
+    constraints on the returned JSON.
+    """
+
+    def clean(value):
+        if isinstance(value, list):
+            return [clean(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+
+        result = {}
+        for key, item in value.items():
+            if key == "default":
+                continue
+            if key == "exclusiveMinimum":
+                result.setdefault("minimum", clean(item))
+                continue
+            if key == "exclusiveMaximum":
+                result.setdefault("maximum", clean(item))
+                continue
+            result[key] = clean(item)
+        return result
+
+    return clean(schema.model_json_schema())
+
+
 # ---------- schemas ----------
 
 
@@ -442,7 +473,7 @@ def _call_structured(
         temperature=0,
         max_output_tokens=max_output_tokens,
         response_mime_type="application/json",
-        response_schema=schema,
+        response_json_schema=_gemini_response_schema(schema),
         system_instruction=system,
     )
     try:
@@ -854,7 +885,7 @@ def review_photos(
             config=gtypes.GenerateContentConfig(
                 temperature=0,
                 response_mime_type="application/json",
-                response_schema=PhotoReview,
+                response_json_schema=_gemini_response_schema(PhotoReview),
                 system_instruction=_PHOTO_REVIEW_SYSTEM,
             ),
         )

@@ -1,4 +1,5 @@
 import pytest
+from pydantic import BaseModel, Field
 
 from casita import llm
 
@@ -58,3 +59,31 @@ def test_missing_gemini_configuration_has_actionable_error():
 
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
         llm._get_client()
+
+
+def test_structured_call_uses_gemini_compatible_json_schema(monkeypatch):
+    class PositiveResult(BaseModel):
+        value: int = Field(gt=0)
+
+    captured = {}
+
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            captured.update(kwargs)
+            return type("Response", (), {"text": '{"value": 7}'})()
+
+    fake_client = type("Client", (), {"models": FakeModels()})()
+    monkeypatch.setattr(llm, "_get_client", lambda: fake_client)
+
+    result = llm._call_structured(
+        "gemini-2.5-flash",
+        "Return a positive value.",
+        "Seven",
+        PositiveResult,
+    )
+
+    assert result == PositiveResult(value=7)
+    config = captured["config"]
+    assert config.response_schema is None
+    assert config.response_json_schema["properties"]["value"]["minimum"] == 0
+    assert "exclusiveMinimum" not in str(config.response_json_schema)
